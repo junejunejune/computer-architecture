@@ -71,3 +71,54 @@ int gt(tinyfp tf1, tinyfp tf2){
 int eq(tinyfp tf1, tinyfp tf2){
 	return 9;
 }
+
+typedef unsigned char tinyfp
+{
+    
+}
+
+
+int check_infinity(tinyfp tf)
+{
+    //if infinity, return 1
+    //else return 0
+    for(int i=6;i>=3;i--)
+    {
+        if(!(tf&(1<<i)))
+            return 0;
+    }
+    for(int i=2;i>=0;i--)
+    {
+        if((tf&(1<<i)))
+            return 0;
+    }
+    return 1;
+}
+int check_NaN(tinyfp tf)
+{
+    //if infinity, return 1
+    //else return 0
+    for(int i=6;i>=3;i--)
+    {
+        if(!(tf&(1<<i)))
+            return 0;
+    }
+    for(int i=2;i>=0;i--)
+    {
+        if((tf&(1<<i)))//there's at least one 1 in fracs
+            return 1;
+    }
+    return 0;//frac's are all zero
+}
+
+int check_zero(tinyfp tf)
+{
+    //if infinity, return 1
+    //else return 0
+    for(int i=6;i>=0;i--)
+    {
+        if((tf&(1<<i)))
+            return 0;
+    }
+    return 1;
+}
