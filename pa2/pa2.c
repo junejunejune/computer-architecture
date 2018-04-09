@@ -13,9 +13,6 @@
 
 #include "pa2.h"
 #include <stdio.h>
-// If this file contains any "float" or "double" word,
-// it will be rejected by the automatic grader.
-// (Do not use those words even in comments.)
 
 typedef unsigned char tinyfp;
 int check_infinity(tinyfp tf);
@@ -25,14 +22,15 @@ int check_zero(tinyfp tf);
 tinyfp add(tinyfp tf1, tinyfp tf2)
 {
     //special cases
-    if(check_infinity(tf1) & !(tf1&(1<<7)))//tf1 == +infinity
+    if(check_NaN(tf1)) return tf1;
+    if(check_NaN(tf2)) return tf2;
+    if(check_infinity(tf1) & (!(tf1&(1<<7))))//tf1 == +infinity
     {
         if(check_infinity(tf2) & (tf2&(1<<7)))//tf2 == -infinity
             return 1<<6 | 1<<5 | 1<<4 | 1<<3| 1<<2;//return NaN
         else
             return tf1;//return +infinity
     }
-    
     if(check_infinity(tf1) & (tf1&(1<<7)))//tf1 == -infinity
     {
         if(check_infinity(tf2) & (!(tf2&(1<<7))))//tf2 == +infinity
@@ -40,10 +38,15 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
         else
             return tf1;
     }
-    if(check_NaN(tf1)) return tf1;
-    if(check_NaN(tf2)) return tf2;
+    if(check_infinity(tf2))
+        return tf2;
     
     //general cases
+    if(check_zero(tf1))//0+x=x
+        return tf2;
+    if(check_zero(tf2))
+        return tf1;
+    
     //2 cases: addition(same sign bit) or subtraction(different sign bit)
     //get exponents from binary to decimal
     int exp=0,exp1=0,exp2=0;
@@ -56,17 +59,19 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
             exp2 += pow_two;
         pow_two *= 2;
     }
-    //printf("exp1: %d, exp2:%d\n",exp1, exp2);
     
     int frac=0,frac1=0,frac2=0;
     frac1=tf1&((1<<2)|(1<<1)|1);//xxx
     frac2=tf2&((1<<2)|(1<<1)|1);
-    frac1+=(1<<3);//1xxx
-    frac2+=(1<<3);
+    
+    //normalized values=>add 1
+    if(exp1!=0)
+        frac1+=(1<<3);//1xxx
+    if(exp2!=0)
+        frac2+=(1<<3);
+    
     if(tf1&(1<<7))  frac1*=-1;//to do subtraction just by adding two fractions
     if(tf2&(1<<7))  frac2*=-1;
-    //printf("frac1: %d, frac2: %d\n",frac1, frac2);
-    
 
     int exp_diff=0;
     if(exp1==exp2)
@@ -170,6 +175,13 @@ tinyfp mul(tinyfp tf1, tinyfp tf2)
     }
     
     //general cases
+    if(check_zero(tf1) | check_zero(tf2))
+    {
+        if((tf1&(1<<7)) != (tf2&(1<<7)))
+            return 1<<7;
+        return 0x00;
+    }
+    
     int exp=0,exp1=0,exp2=0;
     int frac=0,frac1=0,frac2=0;
     int pow_two=1;
@@ -186,7 +198,11 @@ tinyfp mul(tinyfp tf1, tinyfp tf2)
     //copy fractional bits
     frac1=tf1&((1<<2)|(1<<1)|1);//xxx
     frac2=tf2&((1<<2)|(1<<1)|1);
-    frac1+=(1<<3);//1xxx
+    
+    //add one to normalized values
+    if(exp1 != 0)
+        frac1+=(1<<3);//1xxx
+    if(exp2 != 0)
     frac2+=(1<<3);
     
     frac=frac1*frac2;
@@ -226,13 +242,18 @@ int gt(tinyfp tf1, tinyfp tf2)
     if(check_zero(tf1) & check_zero(tf2)) return 0;
     if(check_infinity(tf1) & !(tf1&(1<<7)))//tf1 is +infinity
     {
-        if(check_infinity(tf2) & !(tf1&(1<<7)))
+        if(check_infinity(tf2) & !(tf2&(1<<7)))//tf2 is +infinity
             return 0;
         return 1;
     }
     if(check_infinity(tf1) & (tf1&(1<<7)))//tf1 is -infinity
-    {
         return 0;
+    if(check_infinity(tf2))
+    {
+        if(tf2&(1<<7))//tf2 is -infinity
+           return 1;
+        else
+           return 0;
     }
     
     //general cases
@@ -251,11 +272,26 @@ int gt(tinyfp tf1, tinyfp tf2)
                 exp2 += pow_two;
             pow_two *= 2;
         }
-        if(exp1>exp2)   return 1;
-        else if(exp1<exp2)   return 0;
+        
+        //be careful of negative nums!!!
+        if(exp1>exp2)
+        {
+            if(tf1&(1<<7))//both are negative numbers
+                return 0;
+            else//both are positive numbers
+                return 1;
+        }
+        else if(exp1<exp2)
+        {
+            if(tf1&(1<<7))//both are negative numbers
+                return 1;
+            else//both are positive numbers
+                return 0;
+        }
         else//same exponents
         {
-            int frac1,frac2;
+            
+            int frac1=0,frac2=0;
             pow_two=1;
             for(int i=0;i<=2;i++)
             {
@@ -264,9 +300,20 @@ int gt(tinyfp tf1, tinyfp tf2)
                 if(tf2 & (1<<i))
                     frac2 += pow_two;
                 pow_two *= 2;
+                //printf("frac1: %d, frac2: %d\n", frac1, frac2);
             }
             
-            if(frac1>frac2) return 1;
+            if(tf1&(1<<7))//both are negative numbers
+            {
+                if(frac1>=frac2) return 0;
+                else    return 1;
+            }
+            else//both are positive numbers
+            {
+                //printf("frac1: %d, frac2: %d\n", frac1, frac2);
+                if(frac1>frac2) return 1;
+                else    return 0;
+            }
         }
     }
 	return 0;
@@ -301,7 +348,7 @@ int check_infinity(tinyfp tf)
     {
         if(!(tf&(1<<i)))
             return 0;
-    }
+    }//all exps are 1
     for(int i=2;i>=0;i--)
     {
         if((tf&(1<<i)))
@@ -317,7 +364,7 @@ int check_NaN(tinyfp tf)
     {
         if(!(tf&(1<<i)))
             return 0;
-    }
+    }//all exps are 1
     for(int i=2;i>=0;i--)
     {
         if((tf&(1<<i)))//there's at least one 1 in fracs
