@@ -52,11 +52,11 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
     for(int i=3;i<=6;i++)
     {
         if(tf1 & (1<<i))
+        {
+            
+        }
     }
-    
-    
-    
-    
+ 
 	return 9;
 }
 
@@ -68,15 +68,26 @@ int gt(tinyfp tf1, tinyfp tf2){
 	return 9;
 }
 
-int eq(tinyfp tf1, tinyfp tf2){
-	return 9;
-}
-
-typedef unsigned char tinyfp
+int eq(tinyfp tf1, tinyfp tf2)
 {
+    //special cases
+    if(check_NaN(tf1) | check_NaN(tf2))  return 0;
+    if(check_zero(tf1) & check_zero(tf2)) return 1;
+    if(check_infinity(tf1) & check_infinity(tf2))
+    {
+        if((tf1&(1<<7)) == (tf2&(1<<7)))
+            return 1;
+        return 0;
+    }
     
+    //general cases
+    for(int i=7;i>=0;i--)
+    {
+        if((tf1&(1<<i)) != (tf2&(1<<i)))
+            return 0;
+    }
+	return 1;
 }
-
 
 int check_infinity(tinyfp tf)
 {
