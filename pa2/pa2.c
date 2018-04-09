@@ -75,6 +75,13 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
         frac=frac1+frac2;
         //carry always exists on 5th bit, so get rid of it and shift right
         exp++;
+        if(exp>=15)//overflow
+        {
+            if((tf1&(1<<7)) == (tf2&(1<<7)))//same sign bit
+                return 1<<6 | 1<<5 | 1<<4 | 1<<3; //return +infinity
+            else
+                return 1<<7 | 1<<6 | 1<<5 | 1<<4 | 1<<3; //return -infinity
+        }
         frac=(frac>>1)&((1<<2)|(1<<1)|1);
     }
     else if(exp1>exp2)
@@ -132,11 +139,9 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
     for(int i=3;i>=0;i--)
     {
         k=exp>>i;
-        if(k& 1)
-            ret+=(1<<(i+3));
+        if(k & 1)
+            ret += (1<<(i+3));
     }
-    //exp=exp<<3;
-    //ret += exp;
     
     if(frac<0)//sign bit
     {
@@ -147,8 +152,71 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
 	return ret;
 }
 
-tinyfp mul(tinyfp tf1, tinyfp tf2){
-	return 9;
+tinyfp mul(tinyfp tf1, tinyfp tf2)
+{
+    //special cases
+    if(check_NaN(tf1)) return tf1;
+    if(check_NaN(tf2)) return tf2;
+    if((check_infinity(tf1) & check_zero(tf2)) | (check_infinity(tf2) & check_zero(tf1)))
+    {
+        return 1<<6 | 1<<5 | 1<<4 | 1<<3 | 1<<2;//return NaN
+    }
+    if(check_infinity(tf1) | check_infinity(tf2))
+    {
+        if((tf1&(1<<7)) == (tf2&(1<<7)))//same sign bit infinity
+            return 1<<6 | 1<<5 | 1<<4 | 1<<3; //return +infinity
+        else
+            return 1<<7 | 1<<6 | 1<<5 | 1<<4 | 1<<3; //return -infinity
+    }
+    
+    //general cases
+    int exp=0,exp1=0,exp2=0;
+    int frac=0,frac1=0,frac2=0;
+    int pow_two=1;
+    for(int i=3;i<=6;i++)
+    {
+        if(tf1 & (1<<i))
+            exp1 += pow_two;
+        if(tf2 & (1<<i))
+            exp2 += pow_two;
+        pow_two *= 2;
+    }
+    exp=exp1+exp2-7;
+    
+    //copy fractional bits
+    frac1=tf1&((1<<2)|(1<<1)|1);//xxx
+    frac2=tf2&((1<<2)|(1<<1)|1);
+    frac1+=(1<<3);//1xxx
+    frac2+=(1<<3);
+    
+    frac=frac1*frac2;
+    
+    if(frac>=(1<<7))//highest bit(7th bit) is set
+    {
+        int temp=!(1<<7);
+        frac=frac & (~(1<<7));//turn the highest bit off
+        frac= frac>>4;
+        exp++;
+    }
+    else if(frac>=(1<<6))
+    {
+        frac=frac & (~(1<<6));
+        frac= frac>>3;
+    }
+    
+    if(exp>=15)//overflow
+    {
+        if((tf1&(1<<7)) == (tf2&(1<<7)))//same sign bit
+            return 1<<6 | 1<<5 | 1<<4 | 1<<3; //return +infinity
+        else
+            return 1<<7 | 1<<6 | 1<<5 | 1<<4 | 1<<3; //return -infinity
+    }
+    tinyfp ret=0;
+    exp=exp<<3;
+    ret+=exp+frac;
+    if((tf1&(1<<7)) != (tf2&(1<<7)))//handle sign bit
+        ret+=(1<<7);
+	return ret;
 }
 
 int gt(tinyfp tf1, tinyfp tf2)
