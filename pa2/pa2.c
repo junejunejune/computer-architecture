@@ -52,11 +52,11 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
     for(int i=3;i<=6;i++)
     {
         if(tf1 & (1<<i))
-        {
-            
-        }
+            exp1 += pow_two;
+        if(tf2 & (1<<i))
+            exp2 += pow_two;
+        pow_two *= 2;
     }
- 
 	return 9;
 }
 
@@ -64,8 +64,57 @@ tinyfp mul(tinyfp tf1, tinyfp tf2){
 	return 9;
 }
 
-int gt(tinyfp tf1, tinyfp tf2){
-	return 9;
+int gt(tinyfp tf1, tinyfp tf2)
+{
+    //special cases
+    if(check_NaN(tf1) | check_NaN(tf2))  return 0;
+    if(check_zero(tf1) & check_zero(tf2)) return 0;
+    if(check_infinity(tf1) & !(tf1&(1<<7)))//tf1 is +infinity
+    {
+        if(check_infinity(tf2) & !(tf1&(1<<7)))
+            return 0;
+        return 1;
+    }
+    if(check_infinity(tf1) & (tf1&(1<<7)))//tf1 is -infinity
+    {
+        return 0;
+    }
+    
+    //general cases
+    if((!(tf1&(1<<7))) & (tf2&(1<<7)))    return 1;//tf1:+, tf2:-
+    else if((tf1&(1<<7)) & (!(tf2&(1<<7))))   return 0;//tf1:-, tf2:+
+    else//same sign
+    {
+        //compare exponents first
+        int exp1=0,exp2=0;
+        int pow_two=1;
+        for(int i=3;i<=6;i++)
+        {
+            if(tf1 & (1<<i))
+                exp1 += pow_two;
+            if(tf2 & (1<<i))
+                exp2 += pow_two;
+            pow_two *= 2;
+        }
+        if(exp1>exp2)   return 1;
+        else if(exp1<exp2)   return 0;
+        else//same exponents
+        {
+            int frac1,frac2;
+            pow_two=1;
+            for(int i=0;i<=2;i++)
+            {
+                if(tf1 & (1<<i))
+                    frac1 += pow_two;
+                if(tf2 & (1<<i))
+                    frac2 += pow_two;
+                pow_two *= 2;
+            }
+            
+            if(frac1>frac2) return 1;
+        }
+    }
+	return 0;
 }
 
 int eq(tinyfp tf1, tinyfp tf2)
