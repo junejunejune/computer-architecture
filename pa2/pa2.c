@@ -42,11 +42,10 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
     }
     if(check_NaN(tf1)) return tf1;
     if(check_NaN(tf2)) return tf2;
+    
     //general cases
     //2 cases: addition(same sign bit) or subtraction(different sign bit)
-    
     //get exponents from binary to decimal
-    tinyfp ret=0;
     int exp=0,exp1=0,exp2=0;
     int pow_two=1;
     for(int i=3;i<=6;i++)
@@ -57,7 +56,95 @@ tinyfp add(tinyfp tf1, tinyfp tf2)
             exp2 += pow_two;
         pow_two *= 2;
     }
-	return 9;
+    //printf("exp1: %d, exp2:%d\n",exp1, exp2);
+    
+    int frac=0,frac1=0,frac2=0;
+    frac1=tf1&((1<<2)|(1<<1)|1);//xxx
+    frac2=tf2&((1<<2)|(1<<1)|1);
+    frac1+=(1<<3);//1xxx
+    frac2+=(1<<3);
+    if(tf1&(1<<7))  frac1*=-1;//to do subtraction just by adding two fractions
+    if(tf2&(1<<7))  frac2*=-1;
+    //printf("frac1: %d, frac2: %d\n",frac1, frac2);
+    
+
+    int exp_diff=0;
+    if(exp1==exp2)
+    {
+        exp=exp1;
+        frac=frac1+frac2;
+        //carry always exists on 5th bit, so get rid of it and shift right
+        exp++;
+        frac=(frac>>1)&((1<<2)|(1<<1)|1);
+    }
+    else if(exp1>exp2)
+    {
+        exp=exp1;
+        exp_diff=exp1-exp2;
+        frac2=frac2>>exp_diff;
+        frac=frac1+frac2;
+        //find first 1, and take bits(total 3) after it
+        if(frac>=(1<<4))
+        {
+            exp++;
+            frac=(frac>>1)&((1<<2)|(1<<1)|1);
+        }
+        else if(frac>=(1<<3))
+        {
+            frac=frac&((1<<2)|(1<<1)|1);
+        }
+        else if(frac>=(1<<2))
+        {
+            frac=frac&((1<<1)|1);
+        }
+        else if(frac>=(1<<1))
+        {
+            frac=frac&1;
+        }
+    }
+    else
+    {
+        exp=exp2;
+        exp_diff=exp2-exp1;
+        frac1=frac1>>exp_diff;
+        frac=frac1+frac2;
+        if(frac>=(1<<4))
+        {
+            exp++;
+            frac=(frac>>1)&((1<<2)|(1<<1)|1);
+        }
+        else if(frac>=(1<<3))
+        {
+            frac=frac&((1<<2)|(1<<1)|1);
+        }
+        else if(frac>=(1<<2))
+        {
+            frac=frac&((1<<1)|1);
+        }
+        else if(frac>=(1<<1))
+        {
+            frac=frac&1;
+        }
+    }
+    tinyfp ret=0;
+    //convert exp from decimal to binary
+    int k;
+    for(int i=3;i>=0;i--)
+    {
+        k=exp>>i;
+        if(k& 1)
+            ret+=(1<<(i+3));
+    }
+    //exp=exp<<3;
+    //ret += exp;
+    
+    if(frac<0)//sign bit
+    {
+        ret+=(1<<7);
+        frac*=-1;
+    }
+    ret+=frac;
+	return ret;
 }
 
 tinyfp mul(tinyfp tf1, tinyfp tf2){
